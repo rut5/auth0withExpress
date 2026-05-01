@@ -1,40 +1,62 @@
-// backend/index.js
+import 'dotenv/config'; 
 import express from "express";
-import { authMiddleware } from "./middleware/auth.js";
 import pkg from "express-openid-connect";
 import cors from "cors";
+import escape from "escape-html";
 
-const { requiresAuth } = pkg;
+const { auth, requiresAuth } = pkg;
 const app = express();
-app.use(authMiddleware);
 
+// Middleware
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  }),
+    origin: "http://localhost:5173", 
+    credentials: true, // Required for the session cookie to work with the frontend
+  })
 );
 
-app.get("/", (req, res) => {
-  return res.oidc.login({ returnTo: "http://localhost:5173/profile" });
+// Auth0 Configuration
+app.use(
+  auth({
+    authRequired: false, 
+    auth0Logout: true,
+    secret: process.env.SECRET,
+    baseURL: process.env.BASE_URL,
+    clientID: process.env.CLIENT_ID,
+    issuerBaseURL: process.env.ISSUER_BASE_URL,
+  })
+);
+
+// Routes
+
+app.get('/signup', (req, res) =>
+  res.oidc.login({
+    returnTo: 'http://localhost:5173/profile',
+    authorizationParams: { screen_hint: 'signup' },
+  })
+);
+
+app.get('/login', (req, res) =>
+  res.oidc.login({
+    returnTo: 'http://localhost:5173/profile',
+  })
+);
+
+app.get('/', (req, res) => {
+  if (req.oidc.isAuthenticated()) {
+    return res.redirect('http://localhost:5173/profile');
+  }
+
+  res.type('html').send(`
+    <p>Please log in via the frontend at http://localhost:5173</p>
+    <a href="/login">Or Login here</a>
+  `);
 });
 
 app.get("/profile", requiresAuth(), (req, res) => {
-  try {
-    res.json(req.oidc.user);
-  } catch (error) {
-    console.log(error);
-  }
+  res.json(req.oidc.user);
 });
 
-// Protected route
-// app.get("/secure-data", verifyToken, (req, res) => {
-//   res.json({
-//     message: "This is protected data",
-//     user: req.user, // Decoded token info
-//   });
-// });
-
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`Listening on http://localhost:${port}`));
