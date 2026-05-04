@@ -11,7 +11,7 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:5173", 
+    origin: "http://localhost:5180", 
     credentials: true, // Required for the session cookie to work with the frontend
   })
 );
@@ -32,26 +32,34 @@ app.use(
 
 app.get('/signup', (req, res) =>
   res.oidc.login({
-    returnTo: 'http://localhost:5173/profile',
+    returnTo: 'http://localhost:5180/profile',
     authorizationParams: { screen_hint: 'signup' },
   })
 );
 
 app.get('/login', (req, res) =>
   res.oidc.login({
-    returnTo: 'http://localhost:5173/profile',
+    returnTo: 'http://localhost:5180/profile',
   })
 );
 
 app.get('/', (req, res) => {
   if (req.oidc.isAuthenticated()) {
-    return res.redirect('http://localhost:5173/profile');
+    return res.redirect('http://localhost:5180/profile');
   }
 
   res.type('html').send(`
-    <p>Please log in via the frontend at http://localhost:5173</p>
+    <p>Please log in via the frontend at http://localhost:5180</p>
     <a href="/login">Or Login here</a>
   `);
+});
+
+app.get("/books", (req, res) => {
+  res.json([
+    { id: 1, title: "The Great Gatsby", author: "F. Scott Fitzgerald" },
+    { id: 2, title: "1984", author: "George Orwell" },
+    { id: 3, title: "To Kill a Mockingbird", author: "Harper Lee" }
+  ]);
 });
 
 app.get("/profile", requiresAuth(), (req, res) => {
